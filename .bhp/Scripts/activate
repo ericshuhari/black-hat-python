@@ -37,7 +37,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="C:\Users\root\Desktop\python\redteam\black-hat-python\.bhp_win"
+VIRTUAL_ENV="C:\Users\root\Desktop\python\redteam\black-hat-python\.bhp"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"
@@ -54,8 +54,8 @@ fi
 
 if [ -z "${VIRTUAL_ENV_DISABLE_PROMPT:-}" ] ; then
     _OLD_VIRTUAL_PS1="${PS1:-}"
-    if [ "x(.bhp_win) " != x ] ; then
-	PS1="(.bhp_win) ${PS1:-}"
+    if [ "x(.bhp) " != x ] ; then
+	PS1="(.bhp) ${PS1:-}"
     else
     if [ "`basename \"$VIRTUAL_ENV\"`" = "__" ] ; then
         # special case for Aspen magic directories
