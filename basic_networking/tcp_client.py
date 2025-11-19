@@ -1,13 +1,13 @@
 import socket
 
-target_host = "www.google.com"
-target_port = 80
+target_host = "127.0.0.1"
+target_port = 9998
 
 #create a socket object
 #AF_INET refers to the address family ipv4
 #SOCK_STREAM means connection oriented TCP protocol
 
-client = socket.socket(socket.AF_INET, socket,socket.SOCK_STREAM)
+client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 #connect the client
 client.connect((target_host, target_port))
