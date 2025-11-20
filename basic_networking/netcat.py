@@ -13,7 +13,7 @@ def execute(cmd):
     cmd = cmd.strip()
     if not cmd:
         #empty string return to avoid errors in handle function
-        return #str()
+        return
     
     #run the command and get the output
     output = subprocess.check_output(shlex.split(cmd),
@@ -37,7 +37,6 @@ class NetCat:
 
         #connect to target host and port
         self.socket.connect((self.args.target, self.args.port))
-        # self.socket.send(b'\x04') # EOT to prevent EOFError on server side
         
         #send buffer data if exists
         if self.buffer:
@@ -62,32 +61,15 @@ class NetCat:
                         break
                 if response:
                     print(response)
-                    # buffer = input('> ')
-                    #Copilot suggestion to allow multi-line input until an empty line is entered
-                    input_lines = []
-                    while True:
-                        try:
-                            line = input('> ')
-                        except EOFError:
-                            print('EOF received, exiting.')
-                            self.socket.close()
-                            return
-                        if line == '':
-                            break
-                        input_lines.append(line)
-                    # buffer += '\n'
-                    # self.socket.send(buffer.encode())
-                #     try:
-                #         buffer = input('> ')
-                #         buffer += '\n'
-                #         self.socket.send(buffer.encode())
-                #     except EOFError:
-                #         print('EOF received, exiting.')
-                #         self.socket.close()
-                #         return
+                    try:
+                        buffer = input('> ')
+                        buffer += '\n'
+                        self.socket.send(buffer.encode())
+                    except EOFError:
+                        print('EOF received, exiting.')
+                        self.socket.close()
+                        return
                     
-                    
-
         except KeyboardInterrupt:
             print('User terminated.')
             self.socket.close()
@@ -102,18 +84,20 @@ class NetCat:
 
         #constantly accept incoming connections
         while True:
-            client_socket, _ = self.socket.accept()
-            #sending this back to the client prevents EOF error on client side
-            print(f'[+] Accepted connection from {client_socket.getpeername()[0]}:{client_socket.getpeername()[1]}')
-            # self.socket.send(b'\x04') 
-            # self.socket.shutdown(socket.SHUT_WR) # close the writing side of the socket, remote recv() will get EOF
+            try:
+                client_socket, _ = self.socket.accept()
+                #sending this back to the client prevents EOF error on client side
+                print(f'[+] Accepted connection from {client_socket.getpeername()[0]}:{client_socket.getpeername()[1]}')
 
-            #pass client socket to handle function in new thread
-            client_thread = threading.Thread(
-                target=self.handle, args=(client_socket,)
-                )
-            client_thread.start()
-
+                #pass client socket to handle function in new thread
+                client_thread = threading.Thread(
+                    target=self.handle, args=(client_socket,)
+                    )
+                client_thread.start()
+            except KeyboardInterrupt:
+                print('User terminated.')
+                self.socket.close()
+                sys.exit()
     def handle(self, client_socket):
         #if command execution requested, pass command to execute function and sned output back on the socket
         if self.args.execute:
@@ -129,33 +113,13 @@ class NetCat:
                 data = client_socket.recv(4096)
                 if data:
                     file_buffer += data
-                    # with open(self.args.upload, 'wb') as f:
-                    #     f.write(file_buffer)
-                    # message = f'Saved file {self.args.upload}'
-                    # client_socket.send(message.encode())
                 else:
                     break
             with open(self.args.upload, 'ab') as f:
                 f.write(file_buffer)
             message = f'Saved file {self.args.upload}'
             client_socket.send(message.encode())
-            # client_socket.shutdown(socket.SHUT_WR) # close the writing side of the socket, remote recv() will get EOF
-           
-            # cmd_buffer = b''
-            # while True:
-            #     try:
-            #         client_socket.send(b'BHP: #> ')
-            #         while '\n' not in cmd_buffer.decode():
-            #             cmd_buffer += client_socket.recv(64)
-            #         response = execute(cmd_buffer.decode())
-            #         if response:
-            #             client_socket.send(response.encode())
-            #         cmd_buffer = b''
-            #     except Exception as e:
-            #         print(f'Server killed {e}')
-            #         self.socket.close()
-            #         sys.exit()
-        
+            
         #if command shell requested, set loop to send prompt to sender, wait for command string, execute it, and send back results
         elif self.args.command:
             cmd_buffer = b''
