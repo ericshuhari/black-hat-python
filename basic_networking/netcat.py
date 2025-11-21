@@ -8,6 +8,11 @@ import sys
 import textwrap
 import threading
 
+#define global vars
+hostname = socket.gethostname().encode()
+# hostname = hostname.encode()
+ip_addr = socket.gethostbyname_ex(hostname)
+# ip_addr = ip_addr.encode()
 #handle command execution
 def execute(cmd):
     cmd = cmd.strip()
@@ -37,12 +42,15 @@ class NetCat:
 
         #connect to target host and port
         self.socket.connect((self.args.target, self.args.port))
-        
+
+        #receive initial banner to avoid I/O blocking
+        banner = self.socket.recv(4096)
+        if banner:
+            print(banner.decode())
+
         #send buffer data if exists
         if self.buffer:
             self.socket.send(self.buffer)
-            self.socket.shutdown(socket.SHUT_WR) # close the writing side of the socket, remote recv() will get EOF
-
 
         #continuously read from socket and send user input
         try:
@@ -51,24 +59,14 @@ class NetCat:
                 response = ''
                 while recv_len:
                     data = self.socket.recv(4096)
-                    if data == b'':
-                        print('eof')
-                        break
                     recv_len = len(data)
                     response += data.decode()
                     if recv_len < 4096:
-                        print("break")
                         break
                 if response:
-                    print(response)
-                    try:
-                        buffer = input('> ')
-                        buffer += '\n'
-                        self.socket.send(buffer.encode())
-                    except EOFError:
-                        print('EOF received, exiting.')
-                        self.socket.close()
-                        return
+                    buffer = input(response + ' ')
+                    buffer += '\n'
+                    self.socket.send(buffer.encode())
                     
         except KeyboardInterrupt:
             print('User terminated.')
@@ -86,24 +84,30 @@ class NetCat:
         while True:
             try:
                 client_socket, _ = self.socket.accept()
-                #sending this back to the client prevents EOF error on client side
                 print(f'[+] Accepted connection from {client_socket.getpeername()[0]}:{client_socket.getpeername()[1]}')
+                message = b'[+] Connection established.'
+                client_socket.send(message)
 
                 #pass client socket to handle function in new thread
+                #daemon=True allows main program to exit even if threads are running
+                
                 client_thread = threading.Thread(
                     target=self.handle, args=(client_socket,)
                     )
+                client_thread.daemon = True
                 client_thread.start()
+                
+
             except KeyboardInterrupt:
                 print('User terminated.')
                 self.socket.close()
                 sys.exit()
+
     def handle(self, client_socket):
         #if command execution requested, pass command to execute function and sned output back on the socket
         if self.args.execute:
             output = execute(self.args.execute)
             client_socket.send(output.encode())
-            # client_socket.send(str(output).encode())
         
         #if upload requested, set loop to listen for content on listening socket and receive data until none left, then write to file
         elif self.args.upload:
@@ -117,24 +121,33 @@ class NetCat:
                     break
             with open(self.args.upload, 'ab') as f:
                 f.write(file_buffer)
-            message = f'Saved file {self.args.upload}'
+            message = f'[+] Saved file {self.args.upload}'
             client_socket.send(message.encode())
             
         #if command shell requested, set loop to send prompt to sender, wait for command string, execute it, and send back results
         elif self.args.command:
             cmd_buffer = b''
+            # incoming_buffer = b''
             while True:
                 try:
-                    client_socket.send(b'BHP: #> ')
+                    client_socket.send(b'<' + hostname + b'@' + (self.args.target).encode() + b'#>')
                     while '\n' not in cmd_buffer.decode():
                         cmd_buffer += client_socket.recv(64)
+                    print("[>] Received: " + cmd_buffer.decode())
                     response = execute(cmd_buffer.decode())
+                    
                     if response:
-                        client_socket.send(response.encode())
+                        client_socket.send(b'[+] ' + response.encode())
                     cmd_buffer = b''
-                except Exception as e:
-                    print(f'Server killed {e}')
+                except (Exception, FileNotFoundError) as e:
+                    error_message = f'{e}'
+                    print('[-] Error ocurred: ' + error_message)
+                    client_socket.send(b'[-] Error executing command.' + error_message.encode() + b'Reestablish connection to continue.\n')
+                    
+                    # print(f'Server killed {e}')
+                    # self.socket.shutdown(socket.SHUT_RDWR)
                     self.socket.close()
+                    # return
                     sys.exit()
 
 
@@ -143,8 +156,8 @@ class NetCat:
     def run(self):
         if self.args.listen:
             self.listen()
-        elif self.args.upload and not self.args.listen:
-            parser.error('-u/--upload requires -l/--listen')
+        # elif self.args.upload and not self.args.listen:
+        #     parser.error('-u/--upload requires -l/--listen')
         else:
             self.send()
 
@@ -168,8 +181,8 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--command', action='store_true', help='command shell')
     parser.add_argument('-e', '--execute', help='execute specified command')
     parser.add_argument('-l', '--listen', action='store_true', help='listen')
-    parser.add_argument('-p', '--port', type=int, default=5555, help='specified port')
-    parser.add_argument('-t', '--target', default='192.168.129.128', help='specified IP')
+    parser.add_argument('-p', '--port', required=True, type=int, help='specified port')
+    parser.add_argument('-t', '--target', required=True, help='specified IP')
     parser.add_argument('-u', '--upload', help='upload file')
     args = parser.parse_args()
 
