@@ -49,11 +49,17 @@ class NetCat:
         #send buffer data if exists
         if self.buffer:
             self.socket.send(self.buffer)
+            self.socket.shutdown(socket.SHUT_WR)
+            self.socket.recv(4096)
+            # sys.exit()
 
         #continuously read from socket and send user input
         try:
             running = True
+            buffer = ''
+            
             while True:
+                
                 response = ''
                 while running:
                     self.socket.settimeout(10.0)
@@ -61,7 +67,7 @@ class NetCat:
                     recv_len = len(data)
                     if recv_len == 0:
                         print("[-] Connection closed by remote host.")
-                        break
+                        return
                     chunk = data.decode()
                     response += chunk
                     print(chunk, end='', flush=True)
@@ -69,12 +75,13 @@ class NetCat:
                         break
                 if self.args.target in response:
                     buffer = input(' ')
-                    if buffer.lower() == 'exit' or buffer.lower() == 'quit':
+                    if 'exit' in buffer or 'quit' in buffer:
                         print('Exiting.')
                         self.socket.close()
                         sys.exit()
                     buffer += '\n'
                     self.socket.send(buffer.encode())
+                buffer = ''
 
         #quit on Ctrl-C, send exit message to remote host
         except KeyboardInterrupt:
@@ -82,10 +89,10 @@ class NetCat:
             print('Exiting.')
             
         #handle unexpected errors
-        except Exception as e:
-            print(f'[-] Error occurred: {e}')
-        self.socket.close()
-        sys.exit()
+        # except Exception as e:
+        #     print(f'[-] Error occurred: {e}')
+        # self.socket.close()
+        # sys.exit()
 
     def listen(self):
 
@@ -126,6 +133,7 @@ class NetCat:
         if self.args.execute:
             output = execute(self.args.execute)
             client_socket.send(output.encode())
+            client_socket.shutdown(socket.SHUT_WR)
         
         #if upload requested, set loop to listen for content on listening socket and receive data until none left, then write to file
         elif self.args.upload:
@@ -133,14 +141,18 @@ class NetCat:
             file_buffer = b''
             while True:
                 data = client_socket.recv(4096)
+                data_len = len(file_buffer)
                 if data:
                     file_buffer += data
                 else:
+                    #send and empty byte to break loop and inform sender we're done
+                    client_socket.send(b' ')
                     break
             with open(self.args.upload, 'ab') as f:
                 f.write(file_buffer)
-            message = f'[+] Saved file {self.args.upload}'
-            client_socket.send(message.encode())
+            message = f'[+] Saved file {self.args.upload}.\n[~] Sent {data_len} bytes. Goodbye!\n'
+            client_socket.send(message.encode())            
+            client_socket.close()
             
         #if command shell requested, set loop to send prompt to sender, wait for command string, execute it, and send back results
         elif self.args.command:
@@ -173,6 +185,14 @@ class NetCat:
             self.listen()
         elif self.args.upload and not self.args.listen:
             parser.error('-u/--upload requires -l/--listen')
+        elif self.args.execute and not self.args.listen:
+            parser.error('-e/--execute requires -l/--listen')
+        elif self.args.command and not self.args.listen:
+            parser.error('-c/--command requires -l/--listen')
+        elif self.args.upload and (self.args.execute or self.args.command):
+            parser.error('-u/--upload cannot be used with -e/--execute or -c/--command')
+        elif self.args.execute and self.args.command:
+            parser.error('-e/--execute cannot be used with -c/--command')
         else:
             self.send()
 
@@ -199,9 +219,37 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--port', required=True, type=int, help='specified port')
     parser.add_argument('-t', '--target', required=True, help='specified IP')
     parser.add_argument('-u', '--upload', help='upload file')
+    parser.add_argument('-s', '--send', action='store_true', help='send data by pipe')
     args = parser.parse_args()
 
     #set buffer to empty string, avoids IO issues
-    buffer = b''
+    # if not args.listen:
+    #     if sys.stdin.read() and not args.send:
+    #         parser.error('piped data requires -s/--send')
+    # if args.send:
+    #     buffer = sys.stdin.read().encode()
+    # else:
+    #     buffer = b''
+    # if args.upload:
+    #     buffer = sys.stdin.read()
+    # else:
+    #     buffer = ''
+    
+    # this works for file upload agent side
+    # if args.listen:
+    #     buffer = ''
+    # else:
+    #     buffer = sys.stdin.read().encode()
+
+    #this works for receiving a command shell and executing a single command agent side
+    # buffer = ''
+
+    if args.send:
+        buffer = sys.stdin.read().encode()
+    else:
+        if not sys.stdin.isatty():
+             parser.error('piped data requires -s/--send')
+        buffer = ''
+
     nc = NetCat(args, buffer)
     nc.run()
