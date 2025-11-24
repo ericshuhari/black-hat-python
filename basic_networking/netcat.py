@@ -170,8 +170,13 @@ class NetCat:
                         #send and empty byte to break loop and inform sender we're done
                         client_socket.send(b' ')
                         break
-                with open(self.args.upload, 'ab') as f:
-                    f.write(file_buffer)
+                #append to file if argument present, otherwise overwrite
+                if self.args.append:
+                    with open(self.args.upload, 'ab') as f:
+                        f.write(file_buffer)
+                else:
+                    with open(self.args.upload, 'wb') as f:
+                        f.write(file_buffer)
                 message = f'[+] Saved file {self.args.upload}.\n[~] Sent {data_len} bytes. Goodbye!\n'
                 client_socket.send(message.encode())            
                 client_socket.close()
@@ -244,6 +249,7 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--target', required=True, help='specified IP')
     parser.add_argument('-u', '--upload', help='upload file')
     parser.add_argument('-s', '--send', action='store_true', help='send data by pipe')
+    parser.add_argument('-a','--append',action='store_true', help='append to file instead of overwriting')
     args = parser.parse_args()
 
     if args.send:
