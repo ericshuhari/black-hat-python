@@ -7,9 +7,11 @@ import subprocess
 import sys
 import textwrap
 import threading
+import datetime
 
 #define global vars to identify connection
 hostname = socket.gethostname().encode()
+disconnect = b'exit\n'
 
 #handle command execution
 def execute(cmd):
@@ -62,8 +64,13 @@ class NetCat:
                 
                 response = ''
                 while running:
-                    self.socket.settimeout(10.0)
-                    data = self.socket.recv(4096)
+                    self.socket.settimeout(3.0)
+                    #handle socket timeout to allow KeyboardInterrupt
+                    try:
+                        data = self.socket.recv(4096)
+                    except socket.timeout:
+                        print("Socket timeout. Press Ctrl+C to exit.")
+                        continue
                     recv_len = len(data)
                     if recv_len == 0:
                         print("[-] Connection closed by remote host.")
@@ -74,25 +81,38 @@ class NetCat:
                     if recv_len < 4096:
                         break
                 if self.args.target in response:
+                    #additional control of command shell, allow typing exit/quit to close shell.
                     buffer = input(' ')
-                    if 'exit' in buffer or 'quit' in buffer:
-                        print('Exiting.')
-                        self.socket.close()
-                        sys.exit()
+                    if 'exit' in buffer.lower() or 'quit' in buffer.lower():
+                        end = input("Exit command shell? (y)es/(n)o: ")
+                        s = end.strip().lower()
+                        if (not s or s[0] not in ("y","n")) or s[0] == "n":
+                            print(chunk, end='', flush=True)
+                            buffer = input(' ')
+                            if buffer.strip().lower() in ("exit","quit"):
+                                self.socket.send(disconnect)
+                                print('Exiting.')
+                                sys.exit()
+                        elif s[0] == "y":
+                            buffer = 'exit\n'
+                            self.socket.send(disconnect)
+                            print('Exiting.')
+                            sys.exit()
                     buffer += '\n'
                     self.socket.send(buffer.encode())
                 buffer = ''
 
-        #quit on Ctrl-C, send exit message to remote host
+        #quit on Ctrl-C
         except KeyboardInterrupt:
-            self.socket.send(b'exit\n')
+            self.socket.send(disconnect)
             print('Exiting.')
             
         #handle unexpected errors
-        # except Exception as e:
-        #     print(f'[-] Error occurred: {e}')
-        # self.socket.close()
-        # sys.exit()
+        except Exception as e:
+            self.socket.send(disconnect)
+            print(f'[-] Error occurred: {e}')
+        self.socket.close()
+        sys.exit()
 
     def listen(self):
 
@@ -105,9 +125,10 @@ class NetCat:
         while True:
             try:
                 client_socket, _ = self.socket.accept()
-                print(f'[+] Accepted connection from {client_socket.getpeername()[0]}:{client_socket.getpeername()[1]}')
-                message = b'[+] Connection established.'
-                client_socket.send(message)
+                connect_time = datetime.datetime.now()
+                print(f'[+] Accepted connection from {client_socket.getpeername()[0]}:{client_socket.getpeername()[1]} at {connect_time}')
+                message = f'[+] Connection established at {connect_time}.'
+                client_socket.send(message.encode())
 
                 #pass client socket to handle function in new thread
                 #daemon=True allows main program to exit even if threads are running
@@ -118,7 +139,7 @@ class NetCat:
                 client_thread.daemon = True
                 client_thread.start()
                 
-
+            #listener error handling
             except KeyboardInterrupt:
                 print('Exiting.')
                 sys.exit()
@@ -137,22 +158,25 @@ class NetCat:
         
         #if upload requested, set loop to listen for content on listening socket and receive data until none left, then write to file
         elif self.args.upload:
-            print(f'[*] Receiving content and saving to {self.args.upload}')
-            file_buffer = b''
-            while True:
-                data = client_socket.recv(4096)
-                data_len = len(file_buffer)
-                if data:
-                    file_buffer += data
-                else:
-                    #send and empty byte to break loop and inform sender we're done
-                    client_socket.send(b' ')
-                    break
-            with open(self.args.upload, 'ab') as f:
-                f.write(file_buffer)
-            message = f'[+] Saved file {self.args.upload}.\n[~] Sent {data_len} bytes. Goodbye!\n'
-            client_socket.send(message.encode())            
-            client_socket.close()
+            try:
+                print(f'[*] Receiving content and saving to {self.args.upload}')
+                file_buffer = b''
+                while True:
+                    data = client_socket.recv(4096)
+                    data_len = len(file_buffer)
+                    if data:
+                        file_buffer += data
+                    else:
+                        #send and empty byte to break loop and inform sender we're done
+                        client_socket.send(b' ')
+                        break
+                with open(self.args.upload, 'ab') as f:
+                    f.write(file_buffer)
+                message = f'[+] Saved file {self.args.upload}.\n[~] Sent {data_len} bytes. Goodbye!\n'
+                client_socket.send(message.encode())            
+                client_socket.close()
+            except Exception as e:
+                print(f"[-] Error occured: {e}")
             
         #if command shell requested, set loop to send prompt to sender, wait for command string, execute it, and send back results
         elif self.args.command:
@@ -163,9 +187,9 @@ class NetCat:
                     client_socket.send(b'<' + hostname + b'@' + (self.args.target).encode() + b'#>')
                     while '\n' not in cmd_buffer.decode():
                         cmd_buffer += client_socket.recv(64)
-                    print("[>] Received: " + cmd_buffer.decode())
+                    print("[>] Received: " + cmd_buffer.decode().strip())
                     if cmd_buffer.decode().lower().strip() == 'exit':
-                        print('[x] Client disconnected.')
+                        print('[x] Agent disconnected.')
                         sys.exit()
                     response = execute(cmd_buffer.decode())
                     if response:
@@ -179,7 +203,7 @@ class NetCat:
                     client_socket.send(b'[-] Error executing command. ' + error_message.encode() + b'\n')
                     cmd_buffer = b''
 
-    #entry point for managing NetCat object
+    #entry point for managing NetCat object. sets various requirements for different arguments
     def run(self):
         if self.args.listen:
             self.listen()
@@ -209,7 +233,7 @@ if __name__ == '__main__':
             netcat.py -t 192.168.129.128 -p 5555 -l -c # command shell
             netcat.py -t 192.168.129.128 -p 5555 -l -u=mytest.txt # upload to file
             netcat.py -t 192.168.129.128 -p 5555 -l -e=\"cat /etc/passwd\" # execute command
-            echo 'ABCDEFGHI' | ./netcat.py -t 192.168.1.100 -p 135 # echo text to server port 135
+            echo 'ABCDEFGHI' | ./netcat.py -t 192.168.1.100 -p 135 -s # echo text to server port 135
         '''))
     
     #define arguments
@@ -222,31 +246,10 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--send', action='store_true', help='send data by pipe')
     args = parser.parse_args()
 
-    #set buffer to empty string, avoids IO issues
-    # if not args.listen:
-    #     if sys.stdin.read() and not args.send:
-    #         parser.error('piped data requires -s/--send')
-    # if args.send:
-    #     buffer = sys.stdin.read().encode()
-    # else:
-    #     buffer = b''
-    # if args.upload:
-    #     buffer = sys.stdin.read()
-    # else:
-    #     buffer = ''
-    
-    # this works for file upload agent side
-    # if args.listen:
-    #     buffer = ''
-    # else:
-    #     buffer = sys.stdin.read().encode()
-
-    #this works for receiving a command shell and executing a single command agent side
-    # buffer = ''
-
     if args.send:
         buffer = sys.stdin.read().encode()
     else:
+        #if data is being piped to the script for uploading to a remote file, i.e. sys.stdin is NOT interactive, --send argument required to ensure the send buffer is populated with the contents
         if not sys.stdin.isatty():
              parser.error('piped data requires -s/--send')
         buffer = ''
