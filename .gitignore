@@ -2,3 +2,5 @@
 .archive
 *.vscode*
 *test*.txt
+*pycache*
+*.pyc
