@@ -1,7 +1,7 @@
 *ssh.key*
 .archive
 *.vscode*
-*test*.txt
+*test*
 *pycache*
 *.pyc
 *git*
