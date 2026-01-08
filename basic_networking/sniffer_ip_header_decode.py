@@ -3,6 +3,7 @@ import os
 from ctypes import *
 import ipaddress
 import struct
+import sys
 
 class IP(Structure):
     _fields = [
@@ -42,17 +43,17 @@ class IP:
 
     # continuously read and parse packets
     # human readable IP addresses
-    self.src_address = ipaddress.ip_address(self.src)
-    self.dst_address = ipaddress.ip_address(self.dst)
+        self.src_address = ipaddress.ip_address(self.src)
+        self.dst_address = ipaddress.ip_address(self.dst)
 
-    # map protocol constants to their names
-    self.protocol_map = {1: "ICMP", 6: "TCP", 17: "UDP"}
+        # map protocol constants to their names
+        self.protocol_map = {1: "ICMP", 6: "TCP", 17: "UDP"}
 
-    try:
-        self.protocol = self.protocol_map[self.protocol_num]
-    except Exception as e:
-        print('%s No protocol for %s' % (e, self.protocol_num))
-        self.protocol = str(self.protocol_num)
+        try:
+            self.protocol = self.protocol_map[self.protocol_num]
+        except Exception as e:
+            print('%s No protocol for %s' % (e, self.protocol_num))
+            self.protocol = str(self.protocol_num)
 
 #TODO: Add automatic port scan for live hosts
 
@@ -62,7 +63,7 @@ def sniff(host):
     else:
         socket_protocol = socket.IPPROTO_ICMP
 
-    sniffer = socket.socket(socken.AF_INET, socket.SOCK_RAW, socket_protocol)
+    sniffer = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket_protocol)
     sniffer.bind((host, 0))
     sniffer.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
 
@@ -76,15 +77,15 @@ def sniff(host):
             #create an IP header from the first 20 bytes of the buffer
             ip_header = IP(raw_buffer[0:20])
             #print out the protocol and the hosts
-            print("Protocol: %s %s -> %s" % (ip_header.procotol, ip_header.src_address, ip_header.dst_address))
+            print("Protocol: %s %s -> %s" % (ip_header.protocol, ip_header.src_address, ip_header.dst_address))
     except KeyboardInterrupt:
         #if on Windows, turn off promiscuous mode
         if os.name == 'nt':
             sniffer.ioctl(socket.SIO_RCVALL, socket.RCVALL_OFF)
         sys.exit()
 
-#listener host
-host = '192.168.1.9'
+# listener host
+# host = '192.168.1.9'
 
 # def main():
 #     #create raw socket, bind to public interface, check for OS specifics to set socket protocol
@@ -114,6 +115,5 @@ if __name__ == '__main__':
     if len(sys.argv) == 2:
         host = sys.argv[1]
     else:
-        host = '192.168.1.9'
-    main()
-    
+        host = '192.168.1.15'
+    sniff(host)
