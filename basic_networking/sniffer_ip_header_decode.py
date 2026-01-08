@@ -1,6 +1,7 @@
 import socket
 import os
 from ctypes import *
+import ipaddress
 import struct
 
 class IP(Structure):
@@ -17,36 +18,102 @@ class IP(Structure):
         ("src", c_uint32), # 4 byte unsigned int
         ("dst", c_uint32)  # 4 byte unsigned int
     ]
+# map first 20 bytes of a buffer into IP structure
+class IP:
+    def __init__(self, buff=None):
+        # first format character, <, specifies little-endian byte order, least significant byte in lowest address, most significant byte in highest address
+        # next format charactesr represent individual fields of the IP header, B for unsigned char (1 byte), H for unsigned short (2 bytes), 4s for 4 byte string (s)
+        header = struct.unpack('<BBHHHBBH4s4s', buff)
+        # assign high-order (first) nybble in byte to version, second nybble to IHL
+        # bitwise right shift operator (>>), shifts bits to the right by prepending specified number (4) of 0s
+        self.ver = header[0] >> 4
+        # assign low-order (second) nybble in byte to IHL
+        # bitwise AND operator (&), compares each bit of two operands and returns 1 if both bits are 1, otherwise returns 0
+        self.ihl = header[0] & 0xF
+        self.tos = header[1]
+        self.len = header[2]
+        self.id = header[3]
+        self.offset = header[4]
+        self.ttl = header[5]
+        self.protocol_num = header[6]
+        self.sum = header[7]
+        self.src = ipaddress.ip_address(header[8])
+        self.dst = ipaddress.ip_address(header[9])
+
+    # continuously read and parse packets
+    # human readable IP addresses
+    self.src_address = ipaddress.ip_address(self.src)
+    self.dst_address = ipaddress.ip_address(self.dst)
+
+    # map protocol constants to their names
+    self.protocol_map = {1: "ICMP", 6: "TCP", 17: "UDP"}
+
+    try:
+        self.protocol = self.protocol_map[self.protocol_num]
+    except Exception as e:
+        print('%s No protocol for %s' % (e, self.protocol_num))
+        self.protocol = str(self.protocol_num)
 
 #TODO: Add automatic port scan for live hosts
 
-#listener host
-HOST = '192.168.1.9'
-
-def main():
-    #create raw socket, bind to public interface, check for OS specifics to set socket protocol
+def sniff(host):
     if os.name == 'nt':
-        # on Windows use IP protocol
         socket_protocol = socket.IPPROTO_IP
-        # on Linux use ICMP protocol
     else:
         socket_protocol = socket.IPPROTO_ICMP
-    sniffer = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket_protocol)
-    sniffer.bind((HOST, 0))
-    #include IP headers in captured packets
+
+    sniffer = socket.socket(socken.AF_INET, socket.SOCK_RAW, socket_protocol)
+    sniffer.bind((host, 0))
     sniffer.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
 
-    #if on Windows, set promiscuous mode
     if os.name == 'nt':
         sniffer.ioctl(socket.SIO_RCVALL, socket.RCVALL_ON)
 
-    #read in a single packet
-    print(sniffer.recvfrom(65565))
+    try:
+        while True:
+            #read in a single packet
+            raw_buffer = sniffer.recvfrom(65565)[0]
+            #create an IP header from the first 20 bytes of the buffer
+            ip_header = IP(raw_buffer[0:20])
+            #print out the protocol and the hosts
+            print("Protocol: %s %s -> %s" % (ip_header.procotol, ip_header.src_address, ip_header.dst_address))
+    except KeyboardInterrupt:
+        #if on Windows, turn off promiscuous mode
+        if os.name == 'nt':
+            sniffer.ioctl(socket.SIO_RCVALL, socket.RCVALL_OFF)
+        sys.exit()
 
-    #if on Windows, turn off promiscuous mode
-    if os.name == 'nt':
-        sniffer.ioctl(socket.SIO_RCVALL, socket.RCVALL_OFF)
+#listener host
+host = '192.168.1.9'
+
+# def main():
+#     #create raw socket, bind to public interface, check for OS specifics to set socket protocol
+#     if os.name == 'nt':
+#         # on Windows use IP protocol
+#         socket_protocol = socket.IPPROTO_IP
+#         # on Linux use ICMP protocol
+#     else:
+#         socket_protocol = socket.IPPROTO_ICMP
+#     sniffer = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket_protocol)
+#     sniffer.bind((HOST, 0))
+#     #include IP headers in captured packets
+#     sniffer.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
+
+#     #if on Windows, set promiscuous mode
+#     if os.name == 'nt':
+#         sniffer.ioctl(socket.SIO_RCVALL, socket.RCVALL_ON)
+
+#     #read in a single packet
+#     print(sniffer.recvfrom(65565))
+
+#     #if on Windows, turn off promiscuous mode
+#     if os.name == 'nt':
+#         sniffer.ioctl(socket.SIO_RCVALL, socket.RCVALL_OFF)
 
 if __name__ == '__main__':
+    if len(sys.argv) == 2:
+        host = sys.argv[1]
+    else:
+        host = '192.168.1.9'
     main()
     
