@@ -82,7 +82,7 @@ class Arper:
             else:
                 time.sleep(2)
     # sniffing method
-    def sniff(self, count=100):
+    def sniff(self, count=10000):
         time.sleep(5)
         print(f'Sniffing {count} packets')
         # filter for packets containing victim IP
