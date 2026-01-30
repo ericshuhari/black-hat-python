@@ -14,8 +14,6 @@ Response = collections.namedtuple('Response', ['header', 'payload'])
 # extract packet header from raw HTTP traffic
 def get_header(payload):
     try:
-        print("[DEBUG] Attempting to extract header from payload.")
-        print(f"[DEBUG] Payload preview: {payload.decode()}")
         # extract header by finding the new line sequence that indicates the end of the header
         header_raw = payload[:payload.index(b'\r\n\r\n')+2]
     except ValueError:
@@ -28,27 +26,25 @@ def get_header(payload):
     header = dict(re.findall(r'(?P<name>.*?): (?P<value>.*?)\r\n', header_raw.decode()))
     # return None if 'Content-Type' is not in header
     if 'Content-Type' not in header:
-        # print("[DEBUG] 'Content-Type' not found in header.")
         return None
-    # print(f"[DEBUG] Extracted headers: {header}")
     return header
 
 # extract packet contents
 def extract_content(Response, content_name='image'):
     content, content_type = None, None
     # responses containing an image contain 'image' in 'Content-Type' atrtribute (i.e. image/png, image/jpeg)
-    if content_name in Response.header['Content-Type']:
-        # get content type (e.g. png, jpeg)
-        content_type = Response.header['Content-Type'].split('/')[1]
-        # hold content, everything in payload after header
-        content = Response.payload[Response.payload.index(b'\r\n\r\n')+4:]
+    # if content_name in Response.header['Content-Type']:
+    # get content type (e.g. png, jpeg)
+    content_type = Response.header['Content-Type'].split('/')[1]
+    # hold content, everything in payload after header
+    content = Response.payload[Response.payload.index(b'\r\n\r\n')+4:]
 
-        # decompress content if encoded
-        if 'Content-Encoding' in Response.header:
-            if Response.header['Content-Encoding'] == 'gzip':
-                content = zlib.decompress(Response.payload, zlib.MAX_WBITS | 32)
-            elif Response.header['Content-Encoding'] == 'deflate':
-                content = zlib.decompress(Response.payload)
+    # decompress content if encoded
+    if 'Content-Encoding' in Response.header:
+        if Response.header['Content-Encoding'] == 'gzip':
+            content = zlib.decompress(Response.payload, zlib.MAX_WBITS | 32)
+        elif Response.header['Content-Encoding'] == 'deflate':
+            content = zlib.decompress(Response.payload)
 
     return content, content_type
 class Recapper:
@@ -80,7 +76,6 @@ class Recapper:
                 header = get_header(payload)
                 if header is None:
                     continue
-                # print(f"[DEBUG] Found response with Content-Type: {header.get('Content-Type')}")
                 self.responses.append(Response(header=header,payload=payload))
 
 

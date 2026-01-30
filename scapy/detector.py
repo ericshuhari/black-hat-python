@@ -23,7 +23,7 @@ def detect(srcdir=ROOT, tgtdir=FACES,train_dir=TRAIN):
         try:
             # in images where faces are found, return coordinates of bounding boxes
             if rects.any():
-                print('Got a face')
+                print(f'Got a face in {fname}')
                 # convert (x, y, w, h) to (x1, y1, x2, y2)
                 rects[:,2:] += rects[:,:2]
         except AttributeError:
