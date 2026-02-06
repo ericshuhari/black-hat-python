@@ -1,3 +1,5 @@
 lxml
 paramiko
 scapy
+requests
+bs4
