@@ -8,7 +8,7 @@ import time
 
 # Filter out files we don't care about
 FILTERED = [".jpg", ".gif", ".png", ".css"]
-TARGET = "http://192.168.129.129/wordpress"
+TARGET = "http://192.168.127.128/wordpress"
 THREADS = 10
 
 # queue for located files
@@ -71,7 +71,7 @@ def chdir(path):
 
 if __name__ == '__main__':
     # save original directory, change to wordpress directory, gather paths, and return to original directory
-    with chdir("/home/majora/Downloads/wordpress"):
+    with chdir(os.path.expanduser("~/Downloads/wordpress")):
         gather_paths()
     input('Press Enter to continue...')
     run()
