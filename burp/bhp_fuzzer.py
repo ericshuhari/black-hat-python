@@ -1,3 +1,5 @@
+# Based on the Legacy API: https://github.com/PortSwigger/burp-extender-api/tree/master/src/main/java/burp
+
 from burp import IBurpExtender
 from burp import IIntruderPayloadGeneratorFactory
 from burp import IIntruderPayloadGenerator
@@ -6,7 +8,7 @@ from java.util import List, ArrayList
 
 import random
 
-# Based on the Legacy API: https://github.com/PortSwigger/burp-extender-api/tree/master/src/main/java/burp
+
 
 class BurpExtender(IBurpExtender, IIntruderPayloadGeneratorFactory):
     def registerExtenderCallbacks(self, callbacks):
