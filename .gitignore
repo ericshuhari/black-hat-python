@@ -4,7 +4,7 @@
 *pycache*
 *.pyc
 *.pcap
-mytoken.txt
 key.*
 *.key
 apppass.txt
+*token*
