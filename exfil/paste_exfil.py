@@ -62,7 +62,7 @@ def login(ie):
             elem.setAttribute('value', password)
         
     random_sleep()
-    if ie.Document.forms[0].id == 'wO':
+    if ie.Document.forms[0].id == 'w0':
         ie.Document.forms[0].submit()
     wait_for_browser(ie)
 
@@ -74,7 +74,7 @@ def submit(ie, title, contents):
             elem.setAttribute('value', title)
         elif elem.id == 'postform-text':
             elem.setAttribute('value', contents)
-    if ie.Document.forms[0].id == 'wO':
+    if ie.Document.forms[0].id == 'w0':
         ie.Document.forms[0].submit()
     random_sleep()
     wait_for_browser(ie)
