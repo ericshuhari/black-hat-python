@@ -4,5 +4,8 @@ scapy
 requests
 bs4
 github3.py
+pycryptodomex
+
+# For use on Windows platforms
 pywinhook
 pywin32
