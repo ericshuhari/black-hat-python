@@ -17,7 +17,7 @@ def transmit(document_path):
     client = socket.socket()
     client.connect(('192.168.127.132', 10000))
     with open(document_path, 'rb') as f:
-        win32file.TransmitFile(client, win32file._get-osfhandle(f.fileno()), 0, 0, None, 0, b'', b'')
+        win32file.TransmitFile(client, win32file._get_osfhandle(f.fileno()), 0, 0, None, 0, b'', b'')
 
 if __name__ == '__main__':
     plain_ftp('test.txt')
