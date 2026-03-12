@@ -36,8 +36,12 @@ def monitor():
             print(process_log_message)
             print()
             log_to_file(process_log_message)
-        except Exception:
+        except Exception as e:
+            print(f"Error monitoring process: {e}")
             pass
 
 if __name__ == '__main__':
-    monitor()
+    try:
+        monitor()
+    except KeyboardInterrupt:
+        print(f'Writing to log file {os.path.abspath("process_monitor_log.csv")}')
