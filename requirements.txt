@@ -5,7 +5,9 @@ requests
 bs4
 github3.py
 pycryptodomex
+wmi
+pyinstaller
 
 # For use on Windows platforms
-pywinhook
+#pywinhook
 pywin32
