@@ -8,3 +8,6 @@ key.*
 *.key
 apppass.txt
 *token*
+*.spec
+build
+dist
