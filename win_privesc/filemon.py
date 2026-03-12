@@ -79,6 +79,8 @@ if __name__ == '__main__':
             monitor_thread = threading.Thread(target=monitor, args=(path,))
             monitor_thread.daemon = True
             monitor_thread.start()
+        while True:
+            threading.Event().wait(0.1)
     except KeyboardInterrupt:
         print('Exiting...')
    
