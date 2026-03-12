@@ -84,7 +84,7 @@ def monitor(path_to_watch):
                         # print(contents)
                         print('[^^^] End of file contents')
                     except Exception as e:                        
-                        print(f'[!!!] Could not read file for injection: {e}')
+                        print(f'[!!!] Could not read file: {e}')
                 elif action == FILE_RENAMED_FROM:
                     print(f'[>] Renamed from: {full_filename}')
                 elif action == FILE_RENAMED_TO:
