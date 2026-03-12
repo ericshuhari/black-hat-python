@@ -8,8 +8,8 @@ import win32event
 import win32service
 import win32serviceutil
 
-SRCDIR = 'c:\\users\\eric\\desktop'
-TGTDIR = 'c:\\windows\\temp'
+SRCDIR = 'c:\\users\\eric\\desktop\\BHPCode\\Chapter10\\bhservice\\'
+TGTDIR = 'c:\\windows\\temp\\'
 
 class WinService(win32serviceutil.ServiceFramework):
     _svc_name_ = 'WinService'
