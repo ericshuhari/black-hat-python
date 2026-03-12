@@ -23,7 +23,7 @@ def get_process_privileges(pid):
     except Exception as e:
         print(f'Error retrieving privileges: {e}')
         privileges = 'N/A'
-        return privileges
+    return privileges
 
 def log_to_file(message):
     with open('process_monitor_log.csv', 'a') as fd:
@@ -39,7 +39,7 @@ def monitor():
     while True:
         # block until process_watcher returns a new process creation event
         try:
-            new_process = process_watcher()
+            new_process = process_watcher(timeout_ms=1000)
             cmdline = new_process.CommandLine
             create_date = new_process.CreationDate
             executable = new_process.ExecutablePath
@@ -47,7 +47,6 @@ def monitor():
             pid = new_process.ProcessId
             # get process owner
             proc_owner = new_process.GetOwner()
-
             privileges = get_process_privileges(pid)
             process_log_message = (
                 f'{cmdline}, {create_date}, {executable}, ' 
@@ -56,6 +55,10 @@ def monitor():
             print(process_log_message)
             print()
             log_to_file(process_log_message)
+        except wmi.x_wmi_timed_out:
+            pass
+        except KeyboardInterrupt:
+            raise
         except Exception as e:
             print(f"Error monitoring process: {e}")
             pass
