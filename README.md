@@ -1,0 +1,1 @@
+Collection of scripts from completing Black Hat Python 2nd Edition. Capabilities include networking, web scraping, extending Burp Suite, data exfil, and various other functions. Designed as a complete framework allowing future expansion into a unified toolset.
