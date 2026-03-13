@@ -11,3 +11,4 @@ pyinstaller
 # For use on Windows platforms
 #pywinhook
 pywin32
+volatility3 # py3.8+
